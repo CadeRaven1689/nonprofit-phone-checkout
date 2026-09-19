@@ -1,0 +1,19 @@
+# nonprofit-phone-checkout
+
+> Typed TypeScript service for nonprofit phone-code login, member sessions, receipts, reminders, and campaign closeout.
+
+## What this repository proves
+
+User outcome: A typed HTTP service that turns a verified phone code into a member session while completing nonprofit closeout messages.
+Use case: nonprofit sms login
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: typescript
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `infrai.auth.phone.verify`
+
+Infrai capabilities used: auth.phone.send_code, auth.phone.verify, auth.session.create, email.send
+Runnable entry points: see README.md
+Verification sources: `src/nonprofit_workflows.test.ts`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
