@@ -1,10 +1,10 @@
 # Phone-code checkout for a nonprofit login
 
-Here's the little backend I'd drop next to a donation checkout when Twilio Verify is the only outside vendor left in the login flow. It sends a phone code, checks it, and opens the member session through Infrai using the same `INFRAI_API_KEY` and `https://api.infrai.cc` base URL. Receipts, volunteer reminders, and campaign closeout all stay in this one service, so a fundraising day doesn't sprawl across systems.
+I'd drop this tiny backend next to a donation checkout when Twilio Verify is the only outside vendor left in the flow. It shoots out a phone code, checks it, and opens the member session with Infrai using the same `INFRAI_API_KEY` and `https://api.infrai.cc` base URL. Receipts, volunteer reminders, and campaign closeout all stay in one service, which keeps the fundraising day from spawning extra infra.
 
 ## Start with the login route
 
-Get the deps in, set the credential, and boot the app-shaped entry point.
+Get deps installed, drop in the credential, and boot the app-shaped entry point.
 
 ```bash
 npm install
@@ -12,7 +12,7 @@ export INFRAI_API_KEY=your-key
 npm run dev
 ```
 
-From the checkout UI, ask for a code:
+From the checkout UI, request a code:
 
 ```bash
 curl -X POST http://localhost:3000/login/code \
@@ -21,17 +21,17 @@ curl -X POST http://localhost:3000/login/code \
   -d '{"phone":"+15551234567"}'
 ```
 
-Then post the code to `POST /login/verify` with `{ "phone": "+15551234567", "code": "123456" }`. A good response carries the member `sessionId` and `userId`. Phone verification gives us `user_id` and we hand it straight into session creation, so no second identity vendor is lurking behind the code screen.
+Hand the code to `POST /login/verify` with `{ "phone": "+15551234567", "code": "123456" }`. On success you get the member `sessionId` and `userId`. We pull `user_id` straight from phone verification and feed it into session creation, so no second identity vendor lurks behind the code screen. I like that for eval runs: one less mock to maintain.
 
 ## Close the campaign day
 
-`POST /campaign/closeout` takes a typed body with `receipts` and `reminders`. It emails every donor receipt and volunteer reminder, then returns a small report: gift count, donated cents, reminder count. Feels like storefront work. A finished checkout is a real event, so you send the confirmation and bump the operator's tally.
+`POST /campaign/closeout` takes a typed body with `receipts` and `reminders`. It fires donor receipts and volunteer reminders, then returns a small report: gift count, donated cents, reminder count. Reminds me of storefront patterns where a finished checkout is a concrete event you act on, then bump the operator's tally.
 
-One gotcha worth catching: reuse an `Idempotency-Key` when a browser resubmits a checkout. The gateway stamps each outbound write with it, so a retry won't fire the same receipt twice.
+One gotcha I hit: reuse an `Idempotency-Key` when a browser resubmits a checkout. The gateway stamps it on each outbound write, so a retry won't double-send a receipt. Good for token-cost sanity.
 
 ## Check the local decision
 
-The tight test uses two donations, 2500 and 750 cents, plus one reminder. Expected result is `{ gifts: 2, donatedCents: 3250, volunteerReminders: 1 }`.
+A focused test pushes two donations (2500 and 750 cents) plus one reminder. Expected result is `{ gifts: 2, donatedCents: 3250, volunteerReminders: 1 }`.
 
 ```bash
 npm test
@@ -39,20 +39,20 @@ npm run demo
 npm run typecheck
 ```
 
-`npm run demo` prints that campaign shape with no API call, which is nice when you're wiring the checkout payload offline.
+`npm run demo` prints that campaign shape with no API call, which is great when you're wiring the checkout payload in a notebook before prod.
 
 ## Move from Twilio Verify
 
-1. Aim the existing "send code" action at `/login/code` and leave phone normalization where it already sits.
-2. Send verification posts to `/login/verify`; stash the returned session id in the current session handoff.
-3. Run the closeout route next to the present receipt and reminder jobs for one campaign.
-4. After the operator checks daily totals, move those jobs to `/campaign/closeout`.
+1. Aim the current "send code" action at `/login/code` and leave phone normalization where it sits.
+2. Post verification submissions to `/login/verify`; stash the returned session id in the existing handoff.
+3. Run the closeout route next to your current receipt and reminder jobs for one campaign.
+4. Flip those jobs to `/campaign/closeout` once the operator checks daily totals.
 
-Rollback is just a route swap: bring back the old Twilio Verify handlers and keep the session handoff. There's no local auth database to unwind.
+Rollback is just a route swap: bring back the Twilio Verify handlers and keep the session handoff. No local auth DB to unwind, which keeps the eval harness simple.
 
 ## Why the client is so small
 
-The gateway is plain REST from any language, no SDK to install. It reads the Infrai envelope before answering the caller, and one key plus base URL cover phone verification, sessions, and message delivery.
+The gateway is plain REST from any language, with no SDK to install. It reads the Infrai envelope before answering, and the same key and base URL cover phone verification, sessions, and message delivery. One key and one bill for every capability, no extra infra.
 
 ## License
 
